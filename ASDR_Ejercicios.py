@@ -1,7 +1,8 @@
 import argparse
 from pathlib import Path
 from collections import defaultdict
-from typing import Optional
+from modulos_asdr import transformaciones as transf
+from modulos_asdr import analisis as analisis_asdr
 
 from ASD_Recursivo import (
     EPSILON,
@@ -49,121 +50,29 @@ def construir_gramatica(producciones, orden_nt=None, inicial=None):
 
 
 def eliminar_recursion_izquierda_inmediata(G):
-    nuevas = defaultdict(list)
-    orden = []
-    existentes = set(G.no_terminales)
-
-    for A in G.producciones:
-        orden.append(A)
-        alfas = []
-        betas = []
-
-        for prod in G.producciones[A]:
-            if prod and prod[0] == A:
-                alfas.append(prod[1:])
-            else:
-                betas.append(prod)
-
-        if not alfas:
-            nuevas[A].extend(betas)
-            continue
-
-        Ap = nombre_auxiliar(A, existentes)
-        existentes.add(Ap)
-        orden.append(Ap)
-
-        for beta in betas:
-            if beta == [EPSILON]:
-                nuevas[A].append([Ap])
-            else:
-                nuevas[A].append(beta + [Ap])
-
-        for alfa in alfas:
-            nuevas[Ap].append(alfa + [Ap])
-        nuevas[Ap].append([EPSILON])
-
-    return construir_gramatica(nuevas, orden_nt=orden, inicial=G.inicial)
+    return transf.eliminar_recursion_izquierda_inmediata(G, EPSILON, Gramatica)
 
 
 def serializar_gramatica(G):
-    lineas = []
-    for A in G.producciones:
-        for prod in G.producciones[A]:
-            lineas.append(f"{A} -> {' '.join(prod)}")
-    return "\n".join(lineas) + "\n"
+    return transf.serializar_gramatica(G)
 
 
 def verificar_ll1(G, predicciones):
-    conflictos = []
-    for A in sorted(G.producciones):
-        prods = [tuple(p) for p in G.producciones[A]]
-        for i in range(len(prods)):
-            for j in range(i + 1, len(prods)):
-                p1 = prods[i]
-                p2 = prods[j]
-                inter = predicciones[(A, p1)] & predicciones[(A, p2)]
-                if inter:
-                    conflictos.append((A, p1, p2, inter))
-    return len(conflictos) == 0, conflictos
+    return analisis_asdr.verificar_ll1(G.producciones, predicciones)
 
 
 def generar_asdr(G, predicciones):
-    lineas = []
-
-    for nt in sorted(G.no_terminales):
-        lineas.append(f"def {nt}():")
-        lineas.append("    global token")
-
-        ramas = []
-        for prod in G.producciones[nt]:
-            pred = sorted(predicciones[(nt, tuple(prod))])
-            if not pred:
-                continue
-
-            condicion = " or ".join([f"token == '{t}'" for t in pred])
-            cuerpo = []
-
-            if prod == [EPSILON]:
-                cuerpo.append("pass")
-            else:
-                for s in prod:
-                    if s in G.no_terminales:
-                        cuerpo.append(f"{s}()")
-                    elif s != EPSILON:
-                        cuerpo.append(f"match('{s}')")
-
-            ramas.append((condicion, cuerpo))
-
-        if not ramas:
-            lineas.append("    error('No hay producciones para este no terminal')")
-            lineas.append("")
-            continue
-
-        for i, (condicion, cuerpo) in enumerate(ramas):
-            prefijo = "if" if i == 0 else "elif"
-            lineas.append(f"    {prefijo} {condicion}:")
-            for stmt in cuerpo:
-                lineas.append(f"        {stmt}")
-
-        lineas.append("    else:")
-        lineas.append(f"        error('Token inesperado en {nt}')")
-        lineas.append("")
-
-    return "\n".join(lineas)
+    return analisis_asdr.generar_asdr(
+        G.no_terminales,
+        G.producciones,
+        predicciones,
+        EPSILON,
+    )
 
 
 def serializar_asdr_py(nombre, G, predicciones):
     cuerpo = generar_asdr(G, predicciones)
-    return (
-        "# ASDR de este ejercicio\n"
-        f"# Archivo: {nombre}\n\n"
-        "token = None\n\n"
-        "def match(esperado):\n"
-        "    raise NotImplementedError('Implementa match() segun tu lexer/token stream')\n\n"
-        "def error(mensaje):\n"
-        "    raise SyntaxError(mensaje)\n\n"
-        f"{cuerpo}\n"
-    )
+    return analisis_asdr.serializar_asdr_py(nombre, cuerpo)
 
 
 def mostrar_solucion(nombre, G, mostrar_asdr=False):
