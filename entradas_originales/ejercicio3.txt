@@ -1,0 +1,8 @@
+S -> A B C
+S -> S uno
+A -> dos B C
+A -> ε
+B -> C tres
+B -> ε
+C -> cuatro B
+C -> ε
