@@ -155,6 +155,19 @@ El script imprime:
 - Verificación LL(1)
 - Esqueleto ASDR
 
+## Guias de apoyo
+
+- docs/01_objetivo.md
+- docs/02_estructura.md
+- docs/03_comandos.md
+- docs/04_flujo.md
+- docs/05_ll1.md
+- docs/06_asdr.md
+- docs/07_errores_comunes.md
+- docs/08_versionado.md
+- docs/09_entrega.md
+- docs/10_verificacion.md
+
 ## Nota sobre la entrega
 
 Este repositorio no reemplaza el trabajo anterior: lo complementa.
